@@ -1,0 +1,68 @@
+// Ce fichier définit le schéma de la base de données pour l'application
+// Il utilise Prisma comme ORM pour interagir avec la base de données SQLite
+
+generator client {
+  provider = "prisma-client-js" // Génère le client Prisma pour JavaScript/TypeScript
+}
+
+datasource db {
+  provider = "sqlite" // Utilise SQLite comme base de données
+  url      = env("DATABASE_URL") // URL de connexion à la base de données, définie dans les variables d'environnement
+}
+
+// Modèle User: représente les utilisateurs de la plateforme
+model User {
+  id            String    @id @default(cuid()) // Identifiant unique généré automatiquement
+  email         String    @unique // Email unique pour chaque utilisateur, utilisé pour l'authentification
+  name          String // Nom de l'utilisateur
+  password      String // Mot de passe hashé de l'utilisateur
+  role          Role      @default(PARTICIPANT) // Rôle de l'utilisateur (ADMIN, ORGANIZER, PARTICIPANT)
+  createdAt     DateTime  @default(now()) // Date de création du compte
+  updatedAt     DateTime  @updatedAt // Date de dernière mise à jour du compte
+  verificationCode String? // Code de vérification envoyé par email pour confirmer l'inscription
+  isVerified    Boolean   @default(false) // Indique si le compte a été vérifié
+  events        EventParticipant[] // Relation avec les événements auxquels l'utilisateur participe
+}
+
+// Modèle Event: représente les événements d'anniversaire
+model Event {
+  id            String    @id @default(cuid()) // Identifiant unique généré automatiquement
+  title         String // Titre de l'événement
+  description   String? // Description optionnelle de l'événement
+  date          DateTime // Date et heure de l'événement
+  location      String? // Lieu optionnel de l'événement
+  createdAt     DateTime  @default(now()) // Date de création de l'événement
+  updatedAt     DateTime  @updatedAt // Date de dernière mise à jour de l'événement
+  organizerId   String // ID de l'organisateur de l'événement
+  participants  EventParticipant[] // Relation avec les participants à l'événement
+}
+
+// Modèle EventParticipant: table de jointure entre User et Event
+// Gère la relation many-to-many entre utilisateurs et événements
+model EventParticipant {
+  id            String    @id @default(cuid()) // Identifiant unique généré automatiquement
+  userId        String // ID de l'utilisateur participant
+  eventId       String // ID de l'événement
+  status        ParticipantStatus @default(PENDING) // Statut de participation (PENDING, CONFIRMED, DECLINED)
+  createdAt     DateTime  @default(now()) // Date d'ajout du participant
+  updatedAt     DateTime  @updatedAt // Date de dernière mise à jour du statut
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade) // Relation avec l'utilisateur
+  event         Event     @relation(fields: [eventId], references: [id], onDelete: Cascade) // Relation avec l'événement
+
+  @@unique([userId, eventId]) // Contrainte d'unicité pour éviter les doublons
+}
+
+// Énumération des rôles possibles pour un utilisateur
+enum Role {
+  ADMIN // Administrateur avec tous les droits
+  ORGANIZER // Organisateur pouvant créer et gérer des événements
+  PARTICIPANT // Participant standard
+}
+
+// Énumération des statuts possibles pour un participant à un événement
+enum ParticipantStatus {
+  PENDING // En attente de confirmation
+  CONFIRMED // Participation confirmée
+  DECLINED // Participation refusée
+}
+
